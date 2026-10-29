@@ -1,0 +1,466 @@
+{
+  "widgets": [
+    {
+      "type": "text",
+      "x": 0,
+      "y": 0,
+      "width": 24,
+      "height": 2,
+      "properties": {
+        "markdown": "## Fraud detection endpoint `fraud-rf-endpoint`\nTraffic and health (row 1), model behaviour from the JSON audit log (row 2), drift from the PSI job (row 3), recent flagged transactions (row 4). Audit-log metrics lag a few minutes; PSI points appear when `monitoring/drift_job.py` runs."
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 2,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "title": "Invocations",
+        "region": "us-east-1",
+        "metrics": [
+          [
+            "AWS/SageMaker",
+            "Invocations",
+            "EndpointName",
+            "fraud-rf-endpoint",
+            "VariantName",
+            "AllTraffic",
+            {
+              "stat": "Sum"
+            }
+          ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 2,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "title": "Model latency (ms)",
+        "region": "us-east-1",
+        "metrics": [
+          [
+            "AWS/SageMaker",
+            "ModelLatency",
+            "EndpointName",
+            "fraud-rf-endpoint",
+            "VariantName",
+            "AllTraffic",
+            {
+              "id": "m1",
+              "stat": "Average",
+              "visible": false
+            }
+          ],
+          [
+            "AWS/SageMaker",
+            "ModelLatency",
+            "EndpointName",
+            "fraud-rf-endpoint",
+            "VariantName",
+            "AllTraffic",
+            {
+              "id": "m2",
+              "stat": "p99",
+              "visible": false
+            }
+          ],
+          [
+            {
+              "expression": "m1 / 1000",
+              "label": "average",
+              "id": "e1"
+            }
+          ],
+          [
+            {
+              "expression": "m2 / 1000",
+              "label": "p99",
+              "id": "e2"
+            }
+          ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 2,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "title": "Errors",
+        "region": "us-east-1",
+        "metrics": [
+          [
+            "AWS/SageMaker",
+            "Invocation5XXErrors",
+            "EndpointName",
+            "fraud-rf-endpoint",
+            "VariantName",
+            "AllTraffic",
+            {
+              "stat": "Sum",
+              "label": "5XX"
+            }
+          ],
+          [
+            "FraudDetection",
+            "RequestRejectedCount",
+            {
+              "stat": "Sum",
+              "label": "rejected (400)"
+            }
+          ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 8,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "title": "Model confidence",
+        "region": "us-east-1",
+        "metrics": [
+          [
+            "FraudDetection",
+            "ModelConfidence",
+            {
+              "stat": "Average",
+              "label": "average"
+            }
+          ],
+          [
+            "FraudDetection",
+            "ModelConfidence",
+            {
+              "stat": "p10",
+              "label": "p10"
+            }
+          ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "stat": "Average",
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "alarm",
+              "value": 0.6
+            }
+          ]
+        },
+        "yAxis": {
+          "left": {
+            "min": 0.5,
+            "max": 1
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 8,
+      "y": 8,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "title": "Flagged as FRAUD (%)",
+        "region": "us-east-1",
+        "metrics": [
+          [
+            "FraudDetection",
+            "FraudFlagCount",
+            {
+              "id": "m1",
+              "stat": "Sum",
+              "visible": false
+            }
+          ],
+          [
+            "FraudDetection",
+            "PredictionCount",
+            {
+              "id": "m2",
+              "stat": "Sum",
+              "visible": false
+            }
+          ],
+          [
+            {
+              "expression": "IF(m2 > 0, 100 * m1 / m2, 0)",
+              "label": "% flagged",
+              "id": "e1"
+            }
+          ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "stat": "Average",
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "alarm (3x test-set rate)",
+              "value": 0.594
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 16,
+      "y": 8,
+      "width": 8,
+      "height": 6,
+      "properties": {
+        "title": "Predictions and low-confidence",
+        "region": "us-east-1",
+        "metrics": [
+          [
+            "FraudDetection",
+            "PredictionCount",
+            {
+              "stat": "Sum",
+              "label": "predictions"
+            }
+          ],
+          [
+            "FraudDetection",
+            "LowConfidenceCount",
+            {
+              "stat": "Sum",
+              "label": "confidence < 0.6"
+            }
+          ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 14,
+      "width": 18,
+      "height": 7,
+      "properties": {
+        "title": "Drift: PSI per feature (alarm at 0.2)",
+        "region": "us-east-1",
+        "metrics": [
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "txn_count_1h",
+            {
+              "stat": "Maximum",
+              "label": "txn_count_1h"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "txn_count_24h",
+            {
+              "stat": "Maximum",
+              "label": "txn_count_24h"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "amount_sum_24h",
+            {
+              "stat": "Maximum",
+              "label": "amount_sum_24h"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "secs_since_last_txn",
+            {
+              "stat": "Maximum",
+              "label": "secs_since_last_txn"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "distinct_merchants_24h",
+            {
+              "stat": "Maximum",
+              "label": "distinct_merchants_24h"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "distinct_countries_7d",
+            {
+              "stat": "Maximum",
+              "label": "distinct_countries_7d"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "amount_to_avg_30d",
+            {
+              "stat": "Maximum",
+              "label": "amount_to_avg_30d"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "amount_zscore_30d",
+            {
+              "stat": "Maximum",
+              "label": "amount_zscore_30d"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "is_new_merchant",
+            {
+              "stat": "Maximum",
+              "label": "is_new_merchant"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "is_new_device",
+            {
+              "stat": "Maximum",
+              "label": "is_new_device"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "is_foreign_country",
+            {
+              "stat": "Maximum",
+              "label": "is_foreign_country"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "hour_deviation",
+            {
+              "stat": "Maximum",
+              "label": "hour_deviation"
+            }
+          ],
+          [
+            "FraudDetection",
+            "PSI",
+            "Feature",
+            "fraud_score",
+            {
+              "stat": "Maximum",
+              "label": "fraud_score"
+            }
+          ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "period": 900,
+        "stat": "Average",
+        "annotations": {
+          "horizontal": [
+            {
+              "label": "significant shift",
+              "value": 0.2
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 18,
+      "y": 14,
+      "width": 6,
+      "height": 7,
+      "properties": {
+        "title": "Largest feature PSI",
+        "region": "us-east-1",
+        "metrics": [
+          [
+            "FraudDetection",
+            "MaxFeaturePSI",
+            {
+              "stat": "Maximum"
+            }
+          ],
+          [
+            "FraudDetection",
+            "DriftSampleSize",
+            {
+              "stat": "Maximum",
+              "label": "rows scored"
+            }
+          ]
+        ],
+        "view": "singleValue",
+        "stacked": false,
+        "period": 900,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "log",
+      "x": 0,
+      "y": 21,
+      "width": 24,
+      "height": 7,
+      "properties": {
+        "title": "FRAUD decisions, newest first (deduplicated)",
+        "region": "us-east-1",
+        "view": "table",
+        "query": "SOURCE '/fraud/audit/fraud-rf-endpoint' | fields @timestamp, transaction_id, fraud_score, confidence, request_id | filter event = \"prediction\" and decision = \"FRAUD\" | sort @timestamp desc | dedup request_id, transaction_id"
+      }
+    }
+  ]
+}

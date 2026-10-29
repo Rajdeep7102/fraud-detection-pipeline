@@ -1,0 +1,54 @@
+# Single source of configuration for every pipeline stage.
+# Paths are relative to the repo root.
+
+seed: 42
+
+data:
+  raw_dir: data/raw
+  n_transactions: 30_000_000
+  n_cards: 500_000
+  n_merchants: 50_000
+  n_buckets: 32            # card_id % n_buckets; every stage processes one bucket at a time
+  days: 90
+  start_date: "2026-06-01"
+  # Fraud is injected as whole compromise episodes on a card.
+  compromise_rate: 0.023   # share of cards with one fraud episode (~0.3% of rows end up fraud)
+  episode_mix:             # episode type -> probability
+    card_testing: 0.40
+    account_takeover: 0.35
+    stealth: 0.25
+  # Legitimate behaviour that looks suspicious, so the task is not trivially separable.
+  travel_rate: 0.012       # share of cards with a legit trip abroad
+  big_purchase_rate: 0.003 # share of normal rows that are an unusually large purchase
+  legit_new_device_rate: 0.005
+
+features:
+  dir: data/features
+  duckdb_memory_limit: 3GB
+  duckdb_threads: 4
+
+train:
+  # Day ranges are inclusive, counted from start_date (day 0).
+  train_days: [0, 62]
+  valid_days: [63, 69]
+  test_days: [70, 89]
+  legit_sample_rows: 1_500_000
+  target_precision: 0.94
+  model_dir: artifacts
+  reports_dir: reports
+  rf:
+    n_estimators: 200
+    max_depth: 16
+    min_samples_leaf: 5
+    max_features: sqrt
+    class_weight: balanced_subsample
+    n_jobs: -1
+
+aws:
+  region: us-east-1
+  project: fraud-rf
+  endpoint_name: fraud-rf-endpoint
+  audit_log_group: /fraud/audit/fraud-rf-endpoint   # one CloudWatch Logs event per prediction, written by the container
+  serverless_memory_mb: 3072
+  serverless_max_concurrency: 5
+  cw_namespace: FraudDetection

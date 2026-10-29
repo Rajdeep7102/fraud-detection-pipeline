@@ -1,0 +1,15 @@
+# Contract shared by training, the serving container and the drift job.
+# Order matters: it is the column order of the model's input matrix.
+features:
+  - {name: txn_count_1h,           group: velocity,    dtype: int,   default: 1}
+  - {name: txn_count_24h,          group: velocity,    dtype: int,   default: 1}
+  - {name: amount_sum_24h,         group: velocity,    dtype: float, default: 0.0}
+  - {name: secs_since_last_txn,    group: velocity,    dtype: float, default: 2592000.0}  # first txn = 30 days
+  - {name: distinct_merchants_24h, group: velocity,    dtype: int,   default: 1}
+  - {name: distinct_countries_7d,  group: velocity,    dtype: int,   default: 1}
+  - {name: amount_to_avg_30d,      group: behavioural, dtype: float, default: 1.0}         # no history = 1.0
+  - {name: amount_zscore_30d,      group: behavioural, dtype: float, default: 0.0}         # <2 prior txns = 0.0
+  - {name: is_new_merchant,        group: behavioural, dtype: int,   default: 1}
+  - {name: is_new_device,          group: behavioural, dtype: int,   default: 1}
+  - {name: is_foreign_country,     group: behavioural, dtype: int,   default: 0}
+  - {name: hour_deviation,         group: behavioural, dtype: float, default: 0.0}         # no history = 0.0

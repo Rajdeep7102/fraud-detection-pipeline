@@ -1,0 +1,5 @@
+#!/bin/sh
+# SageMaker starts the container as `docker run <image> serve`. One worker with threads keeps the
+# model in memory once (serverless endpoints have a fixed memory size); no access log, so stdout
+# carries only the JSON audit lines.
+exec gunicorn --bind 0.0.0.0:8080 --workers 1 --threads 4 --timeout 60 --preload "app:create_app()"

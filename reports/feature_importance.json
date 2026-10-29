@@ -1,0 +1,14 @@
+{
+  "is_new_merchant":0.2087,
+  "secs_since_last_txn":0.1394,
+  "distinct_merchants_24h":0.1369,
+  "txn_count_1h":0.1006,
+  "is_foreign_country":0.085,
+  "amount_to_avg_30d":0.0838,
+  "txn_count_24h":0.072,
+  "amount_sum_24h":0.0465,
+  "amount_zscore_30d":0.0463,
+  "hour_deviation":0.0431,
+  "is_new_device":0.0273,
+  "distinct_countries_7d":0.0104
+}

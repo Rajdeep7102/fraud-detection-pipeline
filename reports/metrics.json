@@ -1,0 +1,66 @@
+{
+  "split": {
+    "test_days": [
+      70,
+      89
+    ],
+    "rows": 6663749,
+    "fraud_rows": 15269,
+    "fraud_rate": 0.00229
+  },
+  "threshold": 0.931687841889956,
+  "threshold_chosen_on": "validation days (never the test set)",
+  "precision": 0.9181,
+  "recall": 0.7933,
+  "f1": 0.8512,
+  "pr_auc": 0.8774,
+  "roc_auc": 0.9935,
+  "confusion": {
+    "tp": 12113,
+    "fp": 1080,
+    "fn": 3156,
+    "tn": 6647400
+  },
+  "by_kind": {
+    "card_testing": {
+      "rows": 11046,
+      "flagged": 10452,
+      "recall": 0.9462
+    },
+    "account_takeover": {
+      "rows": 3229,
+      "flagged": 1660,
+      "recall": 0.5141
+    },
+    "stealth": {
+      "rows": 994,
+      "flagged": 1,
+      "recall": 0.001
+    },
+    "travel": {
+      "rows": 5764,
+      "flagged": 363,
+      "flag_rate": 0.063
+    },
+    "normal": {
+      "rows": 6642716,
+      "flagged": 717,
+      "flag_rate": 0.0001
+    }
+  },
+  "precision_95ci": [
+    0.9137,
+    0.9223
+  ],
+  "recall_95ci": [
+    0.7872,
+    0.7995
+  ],
+  "model_version": "rf-202610182120",
+  "model_size_mb": 43.3,
+  "validation": {
+    "valid_precision": 0.9400958466453674,
+    "valid_recall": 0.800498753117207,
+    "valid_pr_auc": 0.8964290211385513
+  }
+}

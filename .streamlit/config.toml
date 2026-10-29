@@ -1,0 +1,7 @@
+[browser]
+gatherUsageStats = false
+
+[server]
+headless = true
+# The app calls AWS with the local credentials, so never listen on the network.
+address = "127.0.0.1"

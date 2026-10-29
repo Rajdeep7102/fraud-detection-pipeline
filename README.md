@@ -1,0 +1,110 @@
+# Fraud detection pipeline
+
+An end-to-end fraud detection system: 30M synthetic card transactions, window-SQL feature engineering in DuckDB,
+a Random Forest, a serverless **AWS SageMaker** endpoint with a durable per-prediction audit log, **CloudWatch**
+monitoring with PSI drift detection, a manager report generator, and an interactive demo.
+
+> **Honest scope.** The data is **synthetic** (a generator with injected fraud patterns), so the numbers show that
+> the pipeline works, not what a bank would see. Scoring is **real time** (a live API, about 70 ms average), but
+> feature computation is **batch**: this is not a streaming pipeline (see [Roadmap](#roadmap)).
+
+## Results (held-out test, 6.66M transactions, never used in training or threshold tuning)
+
+| Metric | Value |
+| --- | --- |
+| Fraud caught (recall) | **79.3%** (95% CI 78.7 to 80.0) |
+| Alerts that are real fraud (precision) | **91.8%** (95% CI 91.4 to 92.2) |
+| False alarms | **1.6 per 10,000 transactions** |
+| PR-AUC / ROC-AUC | 0.877 / 0.994 |
+| Average scoring time on the endpoint | about 70 ms |
+
+| Fraud type | Share of fraud | Caught |
+| --- | --- | --- |
+| Card testing | 72% | 94.6% |
+| Account takeover | 21% | 51.4% |
+| Stealth fraud | 7% | 0.1% |
+
+The split is by time (train days 1-63, threshold tuned on days 64-70, test days 71-90). The model is weak on stealth
+fraud and half-blind on account takeover, which is what the 12 inputs can express; richer signals are on the roadmap.
+
+## Architecture
+
+```text
+ laptop                                              AWS (us-east-1)
+ ──────                                              ───────────────
+ generator ─► Parquet ─► DuckDB window SQL ─► Random Forest ─► model.tar.gz ─► S3
+ (30M rows)   (32 card    (12 features)       (time-based                         │
+              buckets)                         split)            ECR image ◄─ CodeBuild
+                                                                     │
+ replay_traffic.py ──► SageMaker serverless endpoint (Flask + gunicorn container)
+                              │ one put_log_events per request, before responding
+                              ▼
+                       CloudWatch Logs (audit) ─► metric filters ─► dashboard + 5 alarms ─► SNS
+                              └─► Logs Insights ─► drift_job.py (PSI per feature) ─► metrics
+```
+
+## The 12 features (DuckDB window SQL, per card, backwards-looking only)
+
+Velocity: purchases in 1h and 24h, spend in 24h, seconds since last purchase, distinct merchants in 24h, distinct
+countries in 7d. Behavioural: amount vs the card's 30-day average and z-score, first time at merchant, first time
+on device, foreign country, hours away from the usual time of day. See `src/fraud/features/sql/features.sql`.
+
+## Engineering notes (things that went wrong, and the fixes)
+
+- **The audit log was silently lossy.** Printing audit lines to stdout lost about 9% of them on a serverless
+  endpoint (containers freeze after responding; the platform log forwarder is best-effort). The container now writes
+  each request's records to CloudWatch Logs in one `put_log_events` call before it responds; 5,000 of 5,000 replayed
+  predictions arrived afterwards.
+- **Drift detection was blind to binary features.** Quantile bins put every 0/1 value in one bin, so PSI was always 0
+  for `is_foreign_country`. Low-cardinality features now get one bin per value; a regression test covers it.
+- **Time-based split, not random.** A random split leaks a card's future behaviour into training.
+- **Class imbalance:** fraud is about 0.3% of rows, so legit rows are down-sampled for training and the threshold is
+  chosen on an untouched validation period. The score is therefore a ranking, not a calibrated probability.
+- **Precision depends on prevalence.** Fraud was rarer in the test period (0.23%) than in validation (0.38%), which
+  lowered precision for the same rule.
+- **No local Docker needed:** images are built in CodeBuild. Deploys are idempotent; a model is immutable in SageMaker,
+  so model names carry the image tag.
+
+## Quick start
+
+```bash
+python -m venv .venv && .venv/Scripts/python -m pip install -r requirements.txt && .venv/Scripts/python -m pip install -e .
+python -m fraud.data.generate          # 30M rows to data/raw  (about 3 min)
+python -m fraud.features.build         # features for all rows (about 7 min)
+python -m fraud.train.train            # fit, choose threshold on validation, write artifacts/ (16-26 min)
+python -m fraud.train.evaluate         # score the untouched test days -> reports/
+python -m pytest                       # unit and contract tests
+
+python deploy/deploy.py                # S3, ECR, CodeBuild image, IAM, SageMaker serverless endpoint
+python monitoring/setup_monitoring.py  # metric filters, 5 alarms, SNS topic, dashboard
+python monitoring/replay_traffic.py --rows 5000 [--drift]
+python monitoring/drift_job.py --minutes 60 [--request-id-prefix replay-drift]
+
+python -m fraud.reporting.report       # manager report -> reports/manager_report.html (add --offline without AWS)
+streamlit run app/demo.py              # interactive demo (binds to localhost only)
+python deploy/teardown.py [--all]      # remove the endpoint (and with --all, every resource created)
+```
+
+Needs Python 3.12+ (developed on 3.14) and AWS credentials with rights to SageMaker, ECR, S3, IAM, CodeBuild,
+CloudWatch and SNS. Idle cost is cents (serverless endpoint scales to zero); CloudWatch custom metrics are about
+$0.30 each per month, so tear down after demos.
+
+## Layout
+
+```text
+src/fraud/data        synthetic generator          src/fraud/reporting   KPIs, live health, HTML report
+src/fraud/features    SQL + feature spec           src/fraud/monitoring  PSI drift helpers
+src/fraud/train       train / evaluate / baseline  serving/              Flask app, audit sink, Dockerfile
+deploy/               deploy + teardown            monitoring/           setup, drift job, traffic replay
+app/demo.py           Streamlit demo               tests/                generator, features, serving, audit, drift, report
+```
+
+## Roadmap
+
+1. **Streaming:** events through Kinesis, a Lambda that maintains per-card state in DynamoDB and computes the same
+   features online, scoring on the endpoint, and per-transaction alerts to SNS or EventBridge. Needs a parity test
+   against the DuckDB features to avoid training-serving skew.
+2. **Richer signals:** account history (account age, prior disputes) and geography (distance from home, impossible
+   travel speed between consecutive purchases).
+3. Scheduled drift job (EventBridge + Lambda), retraining pipeline, infrastructure as code (CDK or Terraform),
+   model card and runbook.
