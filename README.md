@@ -6,7 +6,7 @@ monitoring with PSI drift detection, a manager report generator, and an interact
 
 > **Honest scope.** The data is **synthetic** (a generator with injected fraud patterns), so the numbers show that
 > the pipeline works, not what a bank would see. Scoring is **real time** (a live API, about 70 ms average), but
-> feature computation is **batch**: this is not a streaming pipeline (see [Roadmap](#roadmap)).
+> feature computation is **batch**: this is not a streaming pipeline (see [Roadmap](#roadmap)). The approach was also run on 590k **real** transactions; see [Validation on real data](#validation-on-real-data-ieee-cis), where the numbers are far lower.
 
 ## Results (held-out test, 6.66M transactions, never used in training or threshold tuning)
 
@@ -64,6 +64,39 @@ on device, foreign country, hours away from the usual time of day. See `src/frau
   lowered precision for the same rule.
 - **No local Docker needed:** images are built in CodeBuild. Deploys are idempotent; a model is immutable in SageMaker,
   so model names carry the image tag.
+
+## Validation on real data (IEEE-CIS)
+
+The synthetic results show the pipeline works; they say little about real fraud. So the same approach was run on the
+public [IEEE-CIS Fraud Detection](https://www.kaggle.com/c/ieee-fraud-detection) data (590,540 real card-not-present
+transactions, 3.5% fraud). The data is not redistributed here: download it from Kaggle into `data/real/` and see
+`src/fraud/real/`. Same discipline as before: time-ordered split (train days 1-101, validation 101-130, test 130-183),
+thresholds chosen on validation only, 95% bootstrap intervals, resampling applied to training rows only.
+
+| Feature set (Random Forest, test period, 148k transactions) | ROC-AUC | PR-AUC (no skill = 0.035) | Flagging ~1% of transactions: precision / recall |
+| --- | --- | --- | --- |
+| A. The 12 velocity and behavioural clues, adapted to this data | 0.757 (0.749 to 0.762) | 0.115 | 21% / 4% |
+| B. The columns the dataset provides (amount, card, address, C1-14, D1-15, M1-9) | 0.866 (0.861 to 0.871) | 0.419 (0.406 to 0.431) | 85% / 16% |
+| C. Both together | 0.866 (0.860 to 0.870) | 0.419 | 85% / 16% |
+
+What this shows:
+
+- **The synthetic numbers do not transfer.** On real data the velocity clues are weak (ROC-AUC 0.76); the dataset's own
+  columns carry most of the signal (0.87), and adding the clues on top changed nothing. Choosing the alert threshold on
+  validation for 80% precision gave 77% precision and 24% recall for model B.
+- **SMOTE hurt.** Compared on model A: no resampling ROC-AUC 0.771, class weights 0.757, random undersampling 0.773,
+  SMOTE 0.712 (PR-AUC 0.108 / 0.115 / 0.121 / 0.092). The first three are close; SMOTE is clearly worse. It was applied
+  inside an `imblearn` pipeline so it never touched validation or test rows.
+- **Caveats.** IEEE-CIS has no card id, so a card is approximated from card, address and first-transaction-day fields;
+  22% of rows are the first of their key. No hyperparameter tuning, no gradient boosting, and the 339 anonymised `V`
+  columns and identity fields were not used, so competition-grade solutions score higher. The deployed endpoint serves
+  the synthetic-trained model; this real-data track is an evaluation, not a deployment.
+
+```bash
+python -m fraud.real.prepare      # CSV -> Parquet (about 10 min)
+python -m fraud.real.features     # the 12 clues on real data (seconds)
+python -m fraud.real.experiment   # train, compare, write reports/real/ (about 20 min)
+```
 
 ## Quick start
 

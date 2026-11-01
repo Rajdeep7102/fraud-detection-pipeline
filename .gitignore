@@ -8,3 +8,5 @@ artifacts/
 .env
 deploy/last_deploy.json
 reports/*.parquet
+*.zip
+*.crdownload
