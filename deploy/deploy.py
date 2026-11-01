@@ -25,6 +25,14 @@ STATE = ROOT / "deploy" / "last_deploy.json"
 SERVING_FILES = ["Dockerfile", "requirements.txt", "audit.py", "scoring.py", "app.py", "serve"]
 MODEL_FILES = ["model.joblib", "model_meta.json", "feature_spec.yaml", "baseline.json"]
 
+
+def model_dir() -> Path:
+    """artifacts/ if you trained a model, else the ready-made models/demo/ (same rule as fraud.config.model_dir)."""
+    for d in (ROOT / "artifacts", ROOT / "models" / "demo"):
+        if (d / "model.joblib").exists():
+            return d
+    raise SystemExit("no model found: run python -m fraud.train.train, or use the bundled models/demo/")
+
 SAGEMAKER_ROLE = "FraudSageMakerExecutionRole"
 CODEBUILD_ROLE = "FraudCodeBuildRole"
 BUILD_PROJECT = "fraud-rf-image-build"
@@ -68,7 +76,7 @@ def upload_model(s3, bucket: str, version: str) -> str:
     buf = io.BytesIO()
     with tarfile.open(fileobj=buf, mode="w:gz") as tar:
         for f in MODEL_FILES:
-            tar.add(ROOT / "artifacts" / f, arcname=f)
+            tar.add(model_dir() / f, arcname=f)
     key = f"models/{version}/model.tar.gz"
     s3.put_object(Bucket=bucket, Key=key, Body=buf.getvalue())
     log(f"uploaded s3://{bucket}/{key} ({len(buf.getvalue()) / 1e6:.0f} MB)")
@@ -260,7 +268,7 @@ def main() -> None:
     session = boto3.Session(region_name=region)
     account = session.client("sts").get_caller_identity()["Account"]
     bucket = f"fraud-pipeline-{account}"
-    meta = json.loads((ROOT / "artifacts" / "model_meta.json").read_text())
+    meta = json.loads((model_dir() / "model_meta.json").read_text())
     version = meta["model_version"]
 
     s3, iam, ecr = session.client("s3"), session.client("iam"), session.client("ecr")

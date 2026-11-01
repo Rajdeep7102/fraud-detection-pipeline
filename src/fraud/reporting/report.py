@@ -19,7 +19,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from fraud.config import ROOT  # noqa: E402
+from fraud.config import ROOT, model_dir  # noqa: E402
 from fraud.reporting import kpis, live  # noqa: E402
 from fraud.reporting.glossary import FEATURES, label, short  # noqa: E402
 
@@ -216,7 +216,7 @@ def generate(out: Path | None = None, hours: int = 24, offline: bool = False,
     health = None if offline else live.health(hours)
     alarms = [] if offline or health is None else live.alarms()
     psi = {} if offline or health is None else live.psi_by_feature(hours)
-    meta_path = ROOT / "artifacts" / "model_meta.json"
+    meta_path = model_dir() / "model_meta.json"
     meta = json.loads(meta_path.read_text()) if meta_path.exists() else None
     html = build_html(metrics, importance, kpis.dollars(review_cost), health, alarms, psi,
                       now or dt.datetime.now(dt.timezone.utc), hours, meta)

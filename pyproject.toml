@@ -16,3 +16,4 @@ fraud = ["features/sql/*.sql", "features/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]   # run the tests straight from a clone, no install step

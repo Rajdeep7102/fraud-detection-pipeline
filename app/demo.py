@@ -6,6 +6,7 @@ performance, live monitoring and a downloadable manager report.
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import uuid
 from pathlib import Path
@@ -17,7 +18,10 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from fraud.config import ROOT, load_config
+# Run straight from a clone: no `pip install -e .` needed, the package lives in src/.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from fraud.config import ROOT, load_config, model_dir
 from fraud.features import feature_names
 from fraud.reporting import kpis, live, report
 from fraud.reporting.glossary import FEATURES, label, short
@@ -62,7 +66,7 @@ st.set_page_config(page_title="Fraud detection demo", page_icon="🛡️", layou
 
 @st.cache_resource
 def local_model():
-    d = ROOT / "artifacts"
+    d = model_dir()
     return (joblib.load(d / "model.joblib"), json.loads((d / "model_meta.json").read_text()),
             json.loads((d / "baseline.json").read_text()))
 
@@ -121,8 +125,9 @@ def load_scenario():
 with st.sidebar:
     st.title("🛡️ Fraud detection")
     st.caption("Random Forest · DuckDB features · AWS SageMaker · CloudWatch")
-    backend = st.radio("Score with", ["Live SageMaker endpoint", "Local model (no AWS)"],
-                       help="The live option calls the deployed endpoint and writes an audit record, like production traffic.")
+    backend = st.radio("Score with", ["Local model (no AWS needed)", "Live SageMaker endpoint (your own deployment)"],
+                       help="Local runs the bundled model on this machine. The endpoint option calls a SageMaker endpoint in "
+                            "your own AWS account (after `python deploy/deploy.py`) and writes an audit record, like production.")
     st.link_button("Open CloudWatch dashboard", DASHBOARD_URL)
     st.info("Built and tested on **synthetic** data. Real-world numbers would differ.")
 
@@ -204,7 +209,7 @@ with tab_live:
 
     health, alarms, psi = _live(hours)
     if health is None:
-        st.warning("CloudWatch could not be reached from here (no AWS credentials or no network).")
+        st.warning("CloudWatch could not be reached. This tab needs your own AWS deployment and credentials (see the README); everything else works without AWS.")
     else:
         c = st.columns(4)
         c[0].metric("Transactions scored", f"{health['predictions']:,}")

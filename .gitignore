@@ -2,11 +2,12 @@
 __pycache__/
 *.egg-info/
 .pytest_cache/
-data/
-artifacts/
+/data/
+/artifacts/
 *.tar.gz
 .env
 deploy/last_deploy.json
 reports/*.parquet
 *.zip
 *.crdownload
+/private/

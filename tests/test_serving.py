@@ -8,12 +8,13 @@ import joblib
 import numpy as np
 import pytest
 
-from fraud.config import ROOT, load_config
+from fraud.config import ROOT, load_config, model_dir
 from fraud.features import feature_names
 
-ARTIFACTS = ROOT / "artifacts"
+ARTIFACTS = model_dir()
 pytestmark = pytest.mark.skipif(not (ARTIFACTS / "model.joblib").exists(), reason="train a model first")
 
+pytest.importorskip("flask", reason="serving tests need the full requirements.txt")
 sys.path.insert(0, str(ROOT / "serving"))
 from app import create_app  # noqa: E402
 
@@ -26,6 +27,8 @@ def client():
 @pytest.fixture(scope="module")
 def rows():
     cfg = load_config()
+    if not (ROOT / cfg["features"]["dir"] / "bucket=00").exists():
+        pytest.skip("needs the generated feature data (python -m fraud.data.generate, then fraud.features.build)")
     glob = (ROOT / cfg["features"]["dir"] / "bucket=00" / "*.parquet").as_posix()
     cols = ", ".join(feature_names())
     df = duckdb.sql(f"""

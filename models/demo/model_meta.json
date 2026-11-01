@@ -1,0 +1,36 @@
+{
+  "model_version": "rf-202610182120",
+  "features": [
+    "txn_count_1h",
+    "txn_count_24h",
+    "amount_sum_24h",
+    "secs_since_last_txn",
+    "distinct_merchants_24h",
+    "distinct_countries_7d",
+    "amount_to_avg_30d",
+    "amount_zscore_30d",
+    "is_new_merchant",
+    "is_new_device",
+    "is_foreign_country",
+    "hour_deviation"
+  ],
+  "rf_params": {
+    "n_estimators": 200,
+    "max_depth": 16,
+    "min_samples_leaf": 5,
+    "max_features": "sqrt",
+    "class_weight": "balanced_subsample",
+    "n_jobs": -1
+  },
+  "train_rows": 1569811,
+  "train_fraud_rows": 70869,
+  "valid_rows": 2334451,
+  "valid_fraud_rows": 8822,
+  "valid_pr_auc": 0.8964290211385513,
+  "model_size_mb": 43.3,
+  "fit_seconds": 1568.1,
+  "threshold": 0.931687841889956,
+  "valid_precision": 0.9400958466453674,
+  "valid_recall": 0.800498753117207,
+  "target_precision_met": true
+}

@@ -2,7 +2,7 @@
 
 Reads the last N minutes of JSON audit lines via CloudWatch Logs Insights (deduplicated on
 request_id + transaction_id, because log delivery is not exactly-once), compares each feature's distribution
-with artifacts/baseline.json, and publishes to namespace FraudDetection:
+with the model's baseline.json, and publishes to namespace FraudDetection:
   PSI{Feature=<name>} for each feature and fraud_score, MaxFeaturePSI, DriftSampleSize.
 
     python monitoring/drift_job.py --minutes 60
@@ -22,6 +22,7 @@ import boto3
 import numpy as np
 import yaml
 
+from fraud.config import model_dir
 from fraud.monitoring import drift
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,7 +64,7 @@ def main() -> None:
 
     cfg = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     region = cfg["aws"]["region"]
-    baseline = json.loads((ROOT / "artifacts" / "baseline.json").read_text())
+    baseline = json.loads((model_dir() / "baseline.json").read_text())
     features = list(baseline["features"])
     session = boto3.Session(region_name=region)
 

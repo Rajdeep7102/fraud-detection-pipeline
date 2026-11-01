@@ -8,6 +8,35 @@ monitoring with PSI drift detection, a manager report generator, and an interact
 > the pipeline works, not what a bank would see. Scoring is **real time** (a live API, about 70 ms average), but
 > feature computation is **batch**: this is not a streaming pipeline (see [Roadmap](#roadmap)). The approach was also run on 590k **real** transactions; see [Validation on real data](#validation-on-real-data-ieee-cis), where the numbers are far lower.
 
+## Try it yourself (2 minutes, no AWS account needed)
+
+Enter a transaction's details and see whether the model flags it as fraud. The trained model ships in `models/demo/`,
+so there is nothing to train or download. You need Python 3.12 or newer (developed on 3.14).
+
+```bash
+git clone https://github.com/Rajdeep7102/fraud-detection-pipeline.git   # or fork it first
+cd fraud-detection-pipeline
+python -m venv .venv
+.venv\Scripts\activate            # Windows   (macOS / Linux: source .venv/bin/activate)
+pip install -r requirements-demo.txt
+streamlit run app/demo.py
+```
+
+A browser tab opens. On **Try it**, pick a scenario (everyday purchase, card testing burst, account takeover, genuine
+holiday abroad, stealth fraud) or change any of the 12 inputs, then press **Score this transaction**. You get a
+verdict, a score, and a chart of which inputs pushed it. The other tabs show how well the model performs, and generate
+the one-page manager report (**Manager report** tab, or `python -m fraud.reporting.report --offline`).
+
+Run the tests with `pytest` (the ones that need the 30M-row dataset skip themselves).
+
+**Optional: use your own AWS account.** Everything above runs locally. To score through a real SageMaker endpoint and
+see the monitoring tab, put your credentials in place (`aws configure`, or the usual `AWS_ACCESS_KEY_ID` /
+`AWS_SECRET_ACCESS_KEY` environment variables), then run `python deploy/deploy.py` (about 10 minutes; it creates an S3
+bucket, ECR repository, CodeBuild project, two IAM roles and a serverless endpoint) and, for the dashboard and alarms,
+`python monitoring/setup_monitoring.py`. In the demo choose **Live SageMaker endpoint**. Idle cost is cents; remove
+everything with `python deploy/teardown.py --all`. The model file is a scikit-learn pickle: only load pickles you
+trust (this one is produced by `fraud.train.train` in this repo).
+
 ## Results (held-out test, 6.66M transactions, never used in training or threshold tuning)
 
 | Metric | Value |
@@ -98,7 +127,7 @@ python -m fraud.real.features     # the 12 clues on real data (seconds)
 python -m fraud.real.experiment   # train, compare, write reports/real/ (about 20 min)
 ```
 
-## Quick start
+## Run the full pipeline yourself (optional, about an hour)
 
 ```bash
 python -m venv .venv && .venv/Scripts/python -m pip install -r requirements.txt && .venv/Scripts/python -m pip install -e .
@@ -108,7 +137,7 @@ python -m fraud.train.train            # fit, choose threshold on validation, wr
 python -m fraud.train.evaluate         # score the untouched test days -> reports/
 python -m pytest                       # unit and contract tests
 
-python deploy/deploy.py                # S3, ECR, CodeBuild image, IAM, SageMaker serverless endpoint
+python deploy/deploy.py                # S3, ECR, CodeBuild image, IAM, SageMaker serverless endpoint (uses artifacts/ if you trained, else models/demo/)
 python monitoring/setup_monitoring.py  # metric filters, 5 alarms, SNS topic, dashboard
 python monitoring/replay_traffic.py --rows 5000 [--drift]
 python monitoring/drift_job.py --minutes 60 [--request-id-prefix replay-drift]
@@ -125,7 +154,8 @@ $0.30 each per month, so tear down after demos.
 ## Layout
 
 ```text
-src/fraud/data        synthetic generator          src/fraud/reporting   KPIs, live health, HTML report
+models/demo           ready-made model (used by the demo)   src/fraud/reporting   KPIs, live health, HTML report
+src/fraud/data        synthetic generator          src/fraud/real        IEEE-CIS real-data validation
 src/fraud/features    SQL + feature spec           src/fraud/monitoring  PSI drift helpers
 src/fraud/train       train / evaluate / baseline  serving/              Flask app, audit sink, Dockerfile
 deploy/               deploy + teardown            monitoring/           setup, drift job, traffic replay
